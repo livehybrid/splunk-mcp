@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "splunk-mcp"
+version = "0.1.0"
+description = "A FastMCP tool for Splunk Enterprise/Cloud operations"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [
+    { include = "splunk_mcp.py" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastmcp = "^0.1.0"
+splunk-sdk = "^1.7.4"
+python-decouple = "^3.8"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0"
+black = "^23.0"
+isort = "^5.0"
+mypy = "^1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+splunk-mcp = "splunk_mcp:mcp.run"

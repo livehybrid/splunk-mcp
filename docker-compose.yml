@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  splunk-mcp:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - SPLUNK_HOST=${SPLUNK_HOST}
+      - SPLUNK_PORT=${SPLUNK_PORT:-8089}
+      - SPLUNK_USERNAME=${SPLUNK_USERNAME}
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
+      - SPLUNK_SCHEME=${SPLUNK_SCHEME:-https}
+      - FASTMCP_LOG_LEVEL=${FASTMCP_LOG_LEVEL:-INFO}
+    volumes:
+      - ./.env:/app/.env:ro
+    restart: unless-stopped 
