@@ -5,6 +5,10 @@ from decouple import config
 import splunklib.client as client
 from splunklib import results
 from datetime import datetime, timedelta
+import sys
+import ssl
+import socket
+import traceback
 
 # Configure logging
 logging.basicConfig(
@@ -17,24 +21,62 @@ mcp = FastMCP("splunk")
 
 # Splunk connection configuration
 SPLUNK_HOST = config("SPLUNK_HOST", default="localhost")
-SPLUNK_PORT = config("SPLUNK_PORT", default=8089)
+SPLUNK_PORT = config("SPLUNK_PORT", default=8089, cast=int)
 SPLUNK_USERNAME = config("SPLUNK_USERNAME", default="admin")
 SPLUNK_PASSWORD = config("SPLUNK_PASSWORD")
 SPLUNK_SCHEME = config("SPLUNK_SCHEME", default="https")
+VERIFY_SSL = config("VERIFY_SSL", default="true", cast=bool)
 
 def get_splunk_connection():
     """Helper function to establish Splunk connection"""
     try:
-        service = client.connect(
-            host=SPLUNK_HOST,
-            port=SPLUNK_PORT,
-            username=SPLUNK_USERNAME,
-            password=SPLUNK_PASSWORD,
-            scheme=SPLUNK_SCHEME
-        )
-        return service
+        logger.info(f"🔌 Attempting to connect to Splunk at {SPLUNK_SCHEME}://{SPLUNK_HOST}:{SPLUNK_PORT}")
+        logger.info(f"SSL Verification is {'enabled' if VERIFY_SSL else 'disabled'}")
+        
+        # Test basic connectivity first
+        try:
+            sock = socket.create_connection((SPLUNK_HOST, SPLUNK_PORT), timeout=10)
+            sock.close()
+            logger.info("✅ Basic TCP connection test successful")
+        except Exception as e:
+            logger.error(f"❌ Failed to establish basic TCP connection: {str(e)}")
+            raise
+
+        # Configure SSL context with detailed logging
+        if not VERIFY_SSL:
+            logger.info("🔒 Creating custom SSL context with verification disabled")
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            logger.info("✅ SSL context configured with verification disabled")
+        else:
+            logger.info("🔒 Using default SSL context with verification enabled")
+            ssl_context = None
+
+        # Attempt Splunk connection with detailed logging
+        try:
+            service = client.connect(
+                host=SPLUNK_HOST,
+                port=SPLUNK_PORT,
+                username=SPLUNK_USERNAME,
+                password=SPLUNK_PASSWORD,
+                scheme=SPLUNK_SCHEME,
+                ssl_context=ssl_context
+            )
+            logger.info("✅ Successfully established Splunk connection")
+            return service
+        except ssl.SSLError as e:
+            logger.error(f"❌ SSL Error during connection: {str(e)}")
+            logger.error(f"SSL Error details: {traceback.format_exc()}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error during Splunk connection: {str(e)}")
+            logger.error(f"Error details: {traceback.format_exc()}")
+            raise
+            
     except Exception as e:
-        logger.error(f"Failed to connect to Splunk: {str(e)}")
+        logger.error(f"❌ Failed to connect to Splunk: {str(e)}")
+        logger.error(f"Full error details: {traceback.format_exc()}")
         raise
 
 @mcp.tool()
@@ -95,7 +137,7 @@ async def search_splunk(
         raise
 
 @mcp.tool()
-async def list_indexes() -> List[Dict[str, Any]]:  # Made async
+async def list_indexes() -> List[Dict[str, Any]]:
     """
     List all available Splunk indexes
     
@@ -108,15 +150,27 @@ async def list_indexes() -> List[Dict[str, Any]]:  # Made async
         indexes = []
         
         for index in service.indexes:
-            index_info = {
-                "name": index.name,
-                "total_event_count": index["totalEventCount"],
-                "current_size": index["currentDBSizeMB"],
-                "max_size": index["maxTotalDataSizeMB"],
-                "earliest_time": index["earliestTime"],
-                "latest_time": index["latestTime"]
-            }
-            indexes.append(index_info)
+            try:
+                index_info = {
+                    "name": index.name,
+                    "total_event_count": index.get("totalEventCount", "0"),
+                    "current_size": index.get("currentDBSizeMB", "0"),
+                    "max_size": index.get("maxTotalDataSizeMB", "0"),
+                    "earliest_time": index.get("earliestTime", "0"),
+                    "latest_time": index.get("latestTime", "0")
+                }
+                indexes.append(index_info)
+            except Exception as e:
+                logger.warning(f"⚠️ Error accessing metadata for index {index.name}: {str(e)}")
+                # Add basic information if metadata access fails
+                indexes.append({
+                    "name": index.name,
+                    "total_event_count": "0",
+                    "current_size": "0",
+                    "max_size": "0",
+                    "earliest_time": "0",
+                    "latest_time": "0"
+                })
             
         logger.info(f"✅ Found {len(indexes)} indexes")
         return indexes
@@ -261,5 +315,12 @@ async def delete_kvstore_collection(  # Made async
         raise
 
 if __name__ == "__main__":
-    logger.info("🚀 Starting Splunk MCP server")
-    mcp.run(transport="sse")  # Added SSE transport 
+    # Get transport mode from command line argument, default to stdio
+    transport_mode = "stdio"
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "sse":
+        transport_mode = "sse"
+        logger.info("🚀 Starting Splunk MCP server in SSE mode")
+    else:
+        logger.info("🚀 Starting Splunk MCP server in STDIO mode")
+    
+    mcp.run(transport=transport_mode) 

@@ -10,6 +10,8 @@ A FastMCP-based tool for interacting with Splunk Enterprise/Cloud through natura
 - **KV Store Operations**: Create, list, and manage KV store collections
 - **Async Support**: Built with async/await patterns for better performance
 - **Detailed Logging**: Comprehensive logging with emoji indicators for better visibility
+- **SSL Configuration**: Flexible SSL verification options for different security requirements
+- **Enhanced Debugging**: Detailed connection and error logging for troubleshooting
 - **Comprehensive Testing**: Unit tests covering all major functionality
 
 ## Prerequisites
@@ -46,96 +48,132 @@ SPLUNK_PORT=8089
 SPLUNK_USERNAME=your_username
 SPLUNK_PASSWORD=your_password
 SPLUNK_SCHEME=https
+VERIFY_SSL=true
 FASTMCP_LOG_LEVEL=INFO
 ```
 
 ### Option 2: Docker Installation
 
-1. Clone the repository:
+1. Pull the latest image:
 ```bash
-git clone <repository-url>
-cd splunk-mcp
+docker pull livehybrid/splunk-mcp:latest
 ```
 
-2. Copy the example environment file and configure your settings:
-```bash
-cp .env.example .env
-```
+2. Create your `.env` file as above or use environment variables directly.
 
-3. Update the `.env` file with your Splunk credentials (same as above).
-
-4. Build and run using Docker Compose:
+3. Run using Docker Compose:
 ```bash
 docker-compose up -d
 ```
 
 Or using Docker directly:
 ```bash
-# Build the image
-docker build -t splunk-mcp .
-
-# Run the container
-docker run -d \
-  -p 3000:3000 \
+docker run -i \
   --env-file .env \
-  --name splunk-mcp \
-  splunk-mcp
+  livehybrid/splunk-mcp
 ```
 
 ## Usage
 
 ### Local Usage
 
-1. Start the MCP server:
+The tool can run in two modes:
+
+1. STDIO mode (default) - for command-line integration:
 ```bash
 poetry run python splunk_mcp.py
+```
+
+2. SSE mode - for web server integration:
+```bash
+poetry run python splunk_mcp.py sse
 ```
 
 ### Docker Usage
 
 If using Docker Compose:
 ```bash
-# Start the service
+# Start the service in STDIO mode (default)
 docker-compose up -d
 
-# View logs
-docker-compose logs -f
-
-# Stop the service
-docker-compose down
+# Start in SSE mode
+docker-compose run --rm splunk-mcp python splunk_mcp.py sse
 ```
 
 If using Docker directly:
 ```bash
-# Start the container
-docker start splunk-mcp
+# Start in STDIO mode (default)
+docker run -i \
+  --env-file .env \
+  livehybrid/splunk-mcp
 
-# View logs
-docker logs -f splunk-mcp
-
-# Stop the container
-docker stop splunk-mcp
+# Start in SSE mode
+docker run -d \
+  -p 3000:3000 \
+  --env-file .env \
+  livehybrid/splunk-mcp python splunk_mcp.py sse
 ```
 
-The server will start and listen for connections on port 3000 in both local and Docker installations.
+### Environment Variables
 
-### Docker Environment Variables
-
-When running with Docker, you can configure the following environment variables:
+Configure the following environment variables:
 - `SPLUNK_HOST`: Your Splunk host address
 - `SPLUNK_PORT`: Splunk management port (default: 8089)
 - `SPLUNK_USERNAME`: Your Splunk username
 - `SPLUNK_PASSWORD`: Your Splunk password
 - `SPLUNK_SCHEME`: Connection scheme (default: https)
+- `VERIFY_SSL`: Enable/disable SSL verification (default: true)
 - `FASTMCP_LOG_LEVEL`: Logging level (default: INFO)
 
-These can be set either in the `.env` file or passed directly to Docker using the `-e` flag.
+### SSL Configuration
+
+The tool provides flexible SSL verification options:
+
+1. **Default (Secure) Mode**:
+```env
+VERIFY_SSL=true
+```
+- Full SSL certificate verification
+- Hostname verification enabled
+- Recommended for production environments
+
+2. **Relaxed Mode**:
+```env
+VERIFY_SSL=false
+```
+- SSL certificate verification disabled
+- Hostname verification disabled
+- Useful for testing or self-signed certificates
+
+### Troubleshooting
+
+#### Connection Issues
+
+1. **Basic Connectivity**:
+- The tool now performs a basic TCP connectivity test
+- Check if port 8089 is accessible
+- Verify network routing and firewalls
+
+2. **SSL Issues**:
+- If seeing SSL errors, try setting `VERIFY_SSL=false`
+- Check certificate validity and trust chain
+- Verify hostname matches certificate
+
+3. **Authentication Issues**:
+- Verify Splunk credentials
+- Check user permissions
+- Ensure account is not locked
+
+4. **Debugging**:
+- Set `FASTMCP_LOG_LEVEL=DEBUG` for detailed logs
+- Check connection logs for specific error messages
+- Review SSL configuration messages
 
 ### Available Tools
 
 1. **search_splunk**
    - Execute Splunk searches with customizable time ranges
-   - Example: Search for hosts sending data in the last hour
+   - Example: Search for events in the last hour
    ```python
    search_query="index=* | stats count by host"
    ```
@@ -153,98 +191,15 @@ These can be set either in the `.env` file or passed directly to Docker using th
    - create_kvstore_collection: Create new collections
    - delete_kvstore_collection: Remove existing collections
 
-## Example Queries
-
-1. Search for temperature data:
-```python
-search_query="index=main sourcetype=httpevent *temperature* | stats avg(value) by location"
-```
-
-2. List all indexes:
-```python
-await list_indexes()
-```
-
-3. View user information:
-```python
-await list_users()
-```
-
 ## Development
-
-### Project Structure
-
-- `splunk_mcp.py`: Main implementation file
-- `pyproject.toml`: Poetry project configuration
-- `.env`: Environment configuration
-- `README.md`: Documentation
-- `tests/`: Unit tests directory
-  - `test_splunk_mcp.py`: Test suite for Splunk MCP functionality
 
 ### Running Tests
 
-The project uses pytest for testing. All tests are written to work without requiring an actual Splunk connection, using mocks to simulate Splunk's behavior.
-
-1. Run all tests:
 ```bash
 poetry run pytest
 ```
 
-2. Run tests with coverage:
-```bash
-poetry run pytest --cov=splunk_mcp tests/
-```
-
-3. Run specific test file:
-```bash
-poetry run pytest tests/test_splunk_mcp.py
-```
-
-4. Run tests with verbose output:
-```bash
-poetry run pytest -v
-```
-
-The test suite includes:
-- Unit tests for all Splunk operations (search, index listing, user management)
-- KV store operation tests
-- Connection handling tests
-- Error case testing
-
-### Adding New Tests
-
-When adding new features:
-1. Create corresponding test cases in `tests/test_splunk_mcp.py`
-2. Use the provided mock fixtures for Splunk service simulation
-3. Add appropriate assertions to verify functionality
-4. Ensure both success and error cases are covered
-
-## Troubleshooting
-
-Common issues and solutions:
-
-1. Connection Issues
-   - Verify Splunk credentials in `.env`
-   - Check network connectivity
-   - Ensure Splunk management port (8089) is accessible
-   - If using Docker, ensure the container has network access to your Splunk instance
-
-2. Docker Issues
-   - Check container logs: `docker logs splunk-mcp`
-   - Verify environment variables are properly set
-   - Ensure port 3000 is not in use by another service
-   - Check container status: `docker ps -a`
-
-2. Permission Issues
-   - Verify user has appropriate Splunk roles
-   - Check app/collection access permissions
-
-3. Search Issues
-   - Validate search syntax
-   - Check time ranges
-   - Verify index access permissions
-
-## Contributing
+### Contributing
 
 1. Fork the repository
 2. Create a feature branch
