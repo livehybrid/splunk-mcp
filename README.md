@@ -206,6 +206,69 @@ poetry run pytest
 3. Make your changes
 4. Submit a pull request
 
+## Claude Desktop Integration
+
+You can integrate Splunk MCP directly with Claude Desktop by adding configuration to your `claude_desktop_config.json` file (typically located at `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS).
+
+### Configuration Example
+
+Add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "tools": {
+    "splunk": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "SPLUNK_HOST",
+        "-e",
+        "SPLUNK_USERNAME",
+        "-e",
+        "SPLUNK_PASSWORD",
+        "-e",
+        "SPLUNK_PORT",
+        "livehybrid/splunk-mcp",
+        "python", 
+        "splunk_mcp.py", 
+        "stdio"
+      ],
+      "env": {
+        "SPLUNK_HOST": "yourSplunkInstance.splunkcloud.com",
+        "SPLUNK_USERNAME": "admin",
+        "SPLUNK_PASSWORD": "yourPassword",
+        "SPLUNK_PORT": "8089"
+      }
+    }
+  }
+}
+```
+
+### Configuration Parameters
+
+1. **Docker Configuration**:
+   - Uses the official `livehybrid/splunk-mcp` image
+   - Runs in interactive mode (`-i`)
+   - Automatically removes container after execution (`--rm`)
+   - Uses STDIO mode for Claude integration
+
+2. **Environment Variables**:
+   - `SPLUNK_HOST`: Your Splunk instance URL
+   - `SPLUNK_USERNAME`: Your Splunk username
+   - `SPLUNK_PORT`: Splunk management port (typically 8089)
+   - `SPLUNK_PASSWORD`: Your Splunk password
+
+### Security Note
+
+When configuring the tool with Claude Desktop:
+- Store your `claude_desktop_config.json` in a secure location
+- Use appropriate file permissions
+- Consider using environment variables or a credential manager for sensitive values
+- Never share your configuration file containing credentials
+
 ## License
 
 [Your License Here]
