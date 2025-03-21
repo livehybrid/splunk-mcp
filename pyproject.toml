@@ -2,24 +2,12 @@
 name = "splunk-mcp"
 version = "0.1.0"
 description = "A FastMCP tool for Splunk Enterprise/Cloud operations"
-authors = [
-    { name = "Your Name", email = "your.email@example.com" }
-]
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
 dependencies = [
     "fastmcp>=0.1.0",
     "splunk-sdk>=1.7.4",
     "python-decouple>=3.8",
-]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 
