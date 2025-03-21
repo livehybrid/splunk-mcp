@@ -136,44 +136,45 @@ async def search_splunk(
         logger.error(f"❌ Error executing Splunk search: {str(e)}")
         raise
 
+
+
 @mcp.tool()
-async def list_indexes() -> List[Dict[str, Any]]:
+async def get_index_metadata(index_name: str) -> Dict[str, Any]:
     """
-    List all available Splunk indexes
+    For an index, get the total event count, current size, max size, earliest time, and latest time.
     
     Returns:
         List of dictionaries containing index information
     """
     try:
         service = get_splunk_connection()
-        logger.info("📊 Fetching Splunk indexes...")
-        indexes = []
+        logger.info(f"📊 Fetching info for Splunk index {index_name}")
+
+        index = service.indexes[index_name]
         
-        for index in service.indexes:
-            try:
-                index_info = {
-                    "name": index.name,
-                    "total_event_count": index.get("totalEventCount", "0"),
-                    "current_size": index.get("currentDBSizeMB", "0"),
-                    "max_size": index.get("maxTotalDataSizeMB", "0"),
-                    "earliest_time": index.get("earliestTime", "0"),
-                    "latest_time": index.get("latestTime", "0")
-                }
-                indexes.append(index_info)
-            except Exception as e:
-                logger.warning(f"⚠️ Error accessing metadata for index {index.name}: {str(e)}")
-                # Add basic information if metadata access fails
-                indexes.append({
-                    "name": index.name,
-                    "total_event_count": "0",
-                    "current_size": "0",
-                    "max_size": "0",
-                    "earliest_time": "0",
-                    "latest_time": "0"
-                })
+        try:
+            index_info = {
+                "name": index_name,
+                "total_event_count": index.get("totalEventCount", "0"),
+                "current_size": index.get("currentDBSizeMB", "0"),
+                "max_size": index.get("maxTotalDataSizeMB", "0"),
+                "earliest_time": index.get("earliestTime", "0"),
+                "latest_time": index.get("latestTime", "0")
+            }
+        except Exception as e:
+            logger.warning(f"⚠️ Error accessing metadata for index {index.name}: {str(e)}")
+            # Add basic information if metadata access fails
+            index_info = {
+                "name": index.name,
+                "total_event_count": "0",
+                "current_size": "0",
+                "max_size": "0",
+                "earliest_time": "0",
+                "latest_time": "0"
+            }
             
-        logger.info(f"✅ Found {len(indexes)} indexes")
-        return indexes
+        logger.info(f"✅ Done pulling index info for {index_name}")
+        return index_info
         
     except Exception as e:
         logger.error(f"❌ Error listing indexes: {str(e)}")
