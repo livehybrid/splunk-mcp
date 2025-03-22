@@ -179,11 +179,11 @@ async def get_index_metadata(index_name: str) -> Dict[str, Any]:
         try:
             index_info = {
                 "name": index_name,
-                "total_event_count": index.get("totalEventCount", "0"),
-                "current_size": index.get("currentDBSizeMB", "0"),
-                "max_size": index.get("maxTotalDataSizeMB", "0"),
-                "earliest_time": index.get("earliestTime", "0"),
-                "latest_time": index.get("latestTime", "0")
+                "total_event_count": index.totalEventCount,
+                "current_size": index.currentDBSizeMB,
+                "max_size": index.maxTotalDataSizeMB,
+                "earliest_time": index.minTime,
+                "latest_time": index.maxTime
             }
         except Exception as e:
             logger.warning(f"⚠️ Error accessing metadata for index {index.name}: {str(e)}")
