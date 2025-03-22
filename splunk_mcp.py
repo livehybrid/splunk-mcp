@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Optional, List, Dict, Any
 from mcp.server.fastmcp import FastMCP  # Updated import path
 from decouple import config
@@ -61,7 +62,9 @@ def get_splunk_connection():
                 username=SPLUNK_USERNAME,
                 password=SPLUNK_PASSWORD,
                 scheme=SPLUNK_SCHEME,
-                ssl_context=ssl_context
+                ssl_context=ssl_context,
+                owner="-",
+                app="-"
             )
             logger.info("✅ Successfully established Splunk connection")
             return service
@@ -123,7 +126,6 @@ async def search_splunk(
         result_stream = job.results(output_mode='json', count=max_results)
         
         # Parse the JSON response
-        import json
         response_data = json.loads(result_stream.read().decode('utf-8'))
         
         if 'results' in response_data:
@@ -137,46 +139,112 @@ async def search_splunk(
         raise
 
 @mcp.tool()
-async def list_indexes() -> List[Dict[str, Any]]:
+async def list_saved_searches() -> List[Dict[str, Any]]:
     """
-    List all available Splunk indexes
+    List all saved searches. This can be useful for example search queries for unknown indexes/sourcetypes.
+
+    Returns:
+        List of dictionaries containing saved search information
+    """
+    try:
+        service = get_splunk_connection()
+        
+        saved_searches = []
+        for search in service.saved_searches:
+            saved_searches.append({
+                "name": search.name,
+                "description": search.description,
+                "search": search.search
+            })
+        return saved_searches
+        
+    except Exception as e:
+        logger.error(f"❌ Error listing saved searches: {str(e)}")
+        raise
+
+@mcp.tool()
+async def get_index_metadata(index_name: str) -> Dict[str, Any]:
+    """
+    For an index, get the total event count, current size, max size, earliest time, and latest time.
     
     Returns:
         List of dictionaries containing index information
     """
     try:
         service = get_splunk_connection()
-        logger.info("📊 Fetching Splunk indexes...")
-        indexes = []
+        logger.info(f"📊 Fetching info for Splunk index {index_name}")
+
+        index = service.indexes[index_name]
         
-        for index in service.indexes:
-            try:
-                index_info = {
-                    "name": index.name,
-                    "total_event_count": index.get("totalEventCount", "0"),
-                    "current_size": index.get("currentDBSizeMB", "0"),
-                    "max_size": index.get("maxTotalDataSizeMB", "0"),
-                    "earliest_time": index.get("earliestTime", "0"),
-                    "latest_time": index.get("latestTime", "0")
-                }
-                indexes.append(index_info)
-            except Exception as e:
-                logger.warning(f"⚠️ Error accessing metadata for index {index.name}: {str(e)}")
-                # Add basic information if metadata access fails
-                indexes.append({
-                    "name": index.name,
-                    "total_event_count": "0",
-                    "current_size": "0",
-                    "max_size": "0",
-                    "earliest_time": "0",
-                    "latest_time": "0"
-                })
+        try:
+            index_info = {
+                "name": index_name,
+                "total_event_count": index.totalEventCount,
+                "current_size": index.currentDBSizeMB,
+                "max_size": index.maxTotalDataSizeMB,
+                "earliest_time": index.minTime,
+                "latest_time": index.maxTime
+            }
+        except Exception as e:
+            logger.warning(f"⚠️ Error accessing metadata for index {index.name}: {str(e)}")
+            # Add basic information if metadata access fails
+            index_info = {
+                "name": index.name,
+                "total_event_count": "0",
+                "current_size": "0",
+                "max_size": "0",
+                "earliest_time": "0",
+                "latest_time": "0"
+            }
             
-        logger.info(f"✅ Found {len(indexes)} indexes")
-        return indexes
+        logger.info(f"✅ Done pulling index info for {index_name}")
+        return index_info
         
     except Exception as e:
         logger.error(f"❌ Error listing indexes: {str(e)}")
+        raise
+
+
+@mcp.tool()
+async def get_indexes_and_sourcetypes() -> Dict[str, Any]:
+    """
+    Get all Splunk indexes and their associated sourcetypes. 
+
+    Returns:
+        List of dictionaries containing event counts by index and sourcetype.
+    """
+    try:
+        service = get_splunk_connection()
+        # Create the search job
+        kwargs_search = {
+            "earliest_time": "-24h",
+            "latest_time": "now",
+            "preview": False,
+            "exec_mode": "blocking"  # Make the search synchronous
+        }
+
+        search_query = "| tstats count AS event_count WHERE (index!=_internal OR index=_internal) by index, sourcetype"
+        
+        logger.info("🔍 Executing Splunk search to get indexes and sourcetypes")
+        job = service.jobs.create(search_query, **kwargs_search)
+        
+        # Get the results
+        results_list = []
+        
+        # Get all results at once in JSON format
+        result_stream = job.results(output_mode='json', count=0)
+        
+        # Parse the JSON response
+        response_data = json.loads(result_stream.read().decode('utf-8'))
+        
+        if 'results' in response_data:
+            results_list = response_data['results']
+            
+        logger.info(f"✅ Search completed. Found {len(results_list)} results")
+        return results_list
+        
+    except Exception as e:
+        logger.error(f"❌ Error executing Splunk search: {str(e)}")
         raise
 
 @mcp.tool()

@@ -1,3 +1,16 @@
+[project]
+name = "splunk-mcp"
+version = "0.1.0"
+description = "A FastMCP tool for Splunk Enterprise/Cloud operations"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=0.1.0",
+    "splunk-sdk>=1.7.4",
+    "python-decouple>=3.8",
+]
+
+
 [tool.poetry]
 name = "splunk-mcp"
 version = "0.1.0"
