@@ -36,3 +36,8 @@ ENV/
 
 # Logs
 *.log
+.DS_Store
+.coverage
+test-results/
+.env
+.cursor

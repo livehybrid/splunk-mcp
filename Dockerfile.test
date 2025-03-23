@@ -1,0 +1,31 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install build dependencies, curl for healthcheck, and uv
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv
+
+# Copy project files
+COPY pyproject.toml poetry.lock ./
+COPY splunk_mcp.py ./
+COPY test_endpoints.py ./
+COPY tests/ ./tests/
+COPY test_config.py ./
+COPY README.md ./
+
+# Install dependencies using uv
+RUN uv pip install --system poetry && \
+    uv pip install --system -e . && \
+    uv pip install --system pytest pytest-asyncio pytest-cov pytest-mock
+
+# Create directory for test results
+RUN mkdir -p /app/test-results
+
+# Default command runs both standalone and pytest tests
+CMD ["sh", "-c", "python test_endpoints.py && pytest tests/test_endpoints_pytest.py -v --junitxml=/app/test-results/test-results.xml"] 

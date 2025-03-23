@@ -1,17 +1,43 @@
-version: '3.8'
-
 services:
-  splunk-mcp:
+  mcp:
     build: .
     ports:
-      - "3000:3000"
+      - "8001:8001"
     environment:
       - SPLUNK_HOST=${SPLUNK_HOST}
       - SPLUNK_PORT=${SPLUNK_PORT:-8089}
       - SPLUNK_USERNAME=${SPLUNK_USERNAME}
       - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
       - SPLUNK_SCHEME=${SPLUNK_SCHEME:-https}
+      - FASTMCP_PORT=8001
       - FASTMCP_LOG_LEVEL=${FASTMCP_LOG_LEVEL:-INFO}
+      - DEBUG=${DEBUG:-false}
+      - MODE=sse
     volumes:
-      - ./.env:/app/.env:ro
-    restart: unless-stopped 
+      - ./config:/app/config
+    healthcheck:
+      test: ["CMD", "curl", "-I", "http://localhost:8001/sse"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  test:
+    build: 
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      mcp:
+        condition: service_healthy
+    environment:
+      - SPLUNK_HOST=${SPLUNK_HOST}
+      - SPLUNK_PORT=${SPLUNK_PORT:-8089}
+      - SPLUNK_USERNAME=${SPLUNK_USERNAME}
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
+      - SPLUNK_SCHEME=${SPLUNK_SCHEME:-https}
+      - FASTMCP_PORT=8001
+      - SSE_BASE_URL=http://mcp:8001
+      - DEBUG=true
+    volumes:
+      - .:/app
+      - ./test-results:/app/test-results
