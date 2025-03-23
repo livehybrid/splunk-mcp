@@ -8,14 +8,16 @@ dependencies = [
     "fastmcp>=0.1.0",
     "splunk-sdk>=1.7.4",
     "python-decouple>=3.8",
+    "aiohttp (>=3.11.14,<4.0.0)",
+    "requests>=2.32.3",
 ]
 
 
 [tool.poetry]
 name = "splunk-mcp"
-version = "0.1.0"
-description = "A FastMCP tool for Splunk Enterprise/Cloud operations"
-authors = ["Your Name <your.email@example.com>"]
+version = "0.3.0"
+description = "Splunk MCP (Model Context Protocol) Server for AI Assistants"
+authors = ["William Searle <splunk@livehybrid.com>"]
 readme = "README.md"
 packages = [
     { include = "splunk_mcp.py" }
@@ -23,15 +25,19 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-fastmcp = "^0.1.0"
-splunk-sdk = "^1.7.4"
-python-decouple = "^3.8"
+fastmcp = ">=0.4.0"
+splunk-sdk = ">=1.7.4"
+python-decouple = ">=3.8"
+requests = ">=2.31.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0"
 black = "^23.0"
 isort = "^5.0"
 mypy = "^1.0"
+pytest-asyncio = ">=0.21.0"
+pytest-cov = ">=4.1.0"
+pytest-mock = "^3.14.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -39,3 +45,11 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 splunk-mcp = "splunk_mcp:mcp.run"
+test = "pytest:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"

@@ -4,8 +4,14 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Install poetry
-RUN pip install poetry
+# Install build dependencies, curl for healthcheck, and uv
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv
 
 # Copy project files
 COPY pyproject.toml poetry.lock ./
@@ -13,11 +19,9 @@ COPY splunk_mcp.py ./
 COPY README.md ./
 COPY .env.example ./
 
-# Configure poetry to not create virtual environment in container
-RUN poetry config virtualenvs.create false
-
-# Install dependencies
-RUN poetry install --no-dev
+# Install dependencies using uv
+RUN uv pip install --system poetry && \
+    uv pip install --system -e .
 
 # Create directory for environment file
 RUN mkdir -p /app/config
@@ -30,9 +34,16 @@ ENV SPLUNK_USERNAME=
 ENV SPLUNK_PASSWORD=
 ENV SPLUNK_SCHEME=https
 ENV FASTMCP_LOG_LEVEL=INFO
+ENV FASTMCP_PORT=8001
+ENV DEBUG=false
+ENV MODE=sse
 
-# Expose the FastMCP port
-EXPOSE 3000
+# Expose the FastAPI port
+EXPOSE 8001
 
-# Command to run the application
-CMD ["poetry", "run", "python", "splunk_mcp.py"] 
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${FASTMCP_PORT}/health || exit 1
+
+# Default to SSE mode
+CMD ["python", "splunk_mcp.py", "sse"] 
