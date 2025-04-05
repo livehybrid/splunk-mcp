@@ -442,17 +442,26 @@ You can integrate Splunk MCP with Claude Desktop by configuring it to use either
 #### STDIO Mode (Recommended for Desktop)
 ```json
 {
-  "splunk": {
-    "command": "poetry",
-    "env": {
-      "SPLUNK_HOST": "your_splunk_host",
-      "SPLUNK_PORT": "8089",
-      "SPLUNK_USERNAME": "your_username",
-      "SPLUNK_PASSWORD": "your_password",
-      "SPLUNK_SCHEME": "https",
-      "VERIFY_SSL": "false"
-    },
-    "args": ["--directory", "/path/to/splunk-mcp", "run", "splunk_mcp.py", "stdio"]
+  "mcpServers": {
+    "splunk": {
+      "command": "poetry",
+      "env": {
+        "SPLUNK_HOST": "your_splunk_host",
+        "SPLUNK_PORT": "8089",
+        "SPLUNK_USERNAME": "your_username",
+        "SPLUNK_PASSWORD": "your_password",
+        "SPLUNK_SCHEME": "https",
+        "VERIFY_SSL": "false"
+      },
+      "args": [
+          "--directory",
+          "/path/to/splunk-mcp",
+          "run",
+          "python",
+          "splunk_mcp.py",
+          "stdio"
+      ]
+    }
   }
 }
 ```
@@ -460,19 +469,28 @@ You can integrate Splunk MCP with Claude Desktop by configuring it to use either
 #### SSE Mode
 ```json
 {
-  "splunk": {
-    "command": "poetry",
-    "env": {
-      "SPLUNK_HOST": "your_splunk_host",
-      "SPLUNK_PORT": "8089",
-      "SPLUNK_USERNAME": "your_username",
-      "SPLUNK_PASSWORD": "your_password",
-      "SPLUNK_SCHEME": "https",
-      "VERIFY_SSL": "false",
-      "FASTMCP_PORT": "8001",
-      "DEBUG": "true"
-    },
-    "args": ["--directory", "/path/to/splunk-mcp", "run", "splunk_mcp.py", "sse"]
+  "mcpServers": {
+    "splunk": {
+      "command": "poetry",
+      "env": {
+        "SPLUNK_HOST": "your_splunk_host",
+        "SPLUNK_PORT": "8089",
+        "SPLUNK_USERNAME": "your_username",
+        "SPLUNK_PASSWORD": "your_password",
+        "SPLUNK_SCHEME": "https",
+        "VERIFY_SSL": "false",
+        "FASTMCP_PORT": "8001",
+        "DEBUG": "true"
+      },
+      "args": [
+          "--directory",
+          "/path/to/splunk-mcp",
+          "run",
+          "python",
+          "splunk_mcp.py",
+          "sse"
+      ]
+    }
   }
 }
 ```
