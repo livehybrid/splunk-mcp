@@ -32,7 +32,7 @@ requests = ">=2.31.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0"
-black = "^23.0"
+black = "^24.3"
 isort = "^5.0"
 mypy = "^1.0"
 pytest-asyncio = ">=0.21.0"
