@@ -31,7 +31,7 @@ python-decouple = ">=3.8"
 requests = ">=2.31.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.0"
+pytest = "^8.3"
 black = "^23.0"
 isort = "^5.0"
 mypy = "^1.0"
