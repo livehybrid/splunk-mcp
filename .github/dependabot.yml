@@ -5,7 +5,7 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    target-branch: "main" # Default branch for PRs
+    target-branch: "develop" # Default branch for PRs
     commit-message:
       prefix: "chore(deps)"
       include: "scope" 
