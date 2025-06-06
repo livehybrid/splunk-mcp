@@ -5,6 +5,17 @@ import splunklib.client
 from datetime import datetime
 from splunk_mcp import get_splunk_connection, mcp
 
+# Ensure pytest-mock is available for the 'mocker' fixture
+try:
+    import pytest_mock  # noqa: F401
+except ImportError:
+    # If pytest-mock is not installed, provide a fallback for 'mocker'
+    @pytest.fixture
+    def mocker():
+        from unittest import mock
+        return mock
+    # Note: For full functionality, install pytest-mock: pip install pytest-mock
+
 # Helper function to extract JSON from TextContent objects
 def extract_json_from_result(result):
     """Extract JSON data from FastMCP TextContent objects or regular dict/list objects"""

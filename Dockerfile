@@ -19,9 +19,9 @@ COPY splunk_mcp.py ./
 COPY README.md ./
 COPY .env.example ./
 
-# Install dependencies using uv
+# Install dependencies using uv (only main group by default)
 RUN uv pip install --system poetry && \
-    uv pip install --system -e .
+    uv pip install --system .
 
 # Create directory for environment file
 RUN mkdir -p /app/config
