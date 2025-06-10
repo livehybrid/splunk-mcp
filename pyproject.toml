@@ -10,6 +10,7 @@ dependencies = [
     "python-decouple>=3.8",
     "aiohttp (>=3.11.14,<4.0.0)",
     "requests>=2.32.3",
+    "fastapi>=0.100.0"
 ]
 
 
@@ -29,6 +30,7 @@ fastmcp = ">=0.4.0"
 splunk-sdk = ">=1.7.4"
 python-decouple = ">=3.8"
 requests = ">=2.31.0"
+fastapi = ">=0.100.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"
