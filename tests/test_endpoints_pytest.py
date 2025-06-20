@@ -456,4 +456,26 @@ async def test_ping():
     except ValueError:
         timestamp_valid = False
     
-    assert timestamp_valid, "Timestamp is not in a valid ISO format" 
+    assert timestamp_valid, "Timestamp is not in a valid ISO format"
+
+@pytest.mark.asyncio
+async def test_splunk_token_auth():
+    """Test Splunk connection with token-based authentication"""
+    with patch("splunklib.client.connect") as mock_connect:
+        mock_service = MagicMock()
+        mock_connect.return_value = mock_service
+        with patch.dict("os.environ", {
+            "SPLUNK_HOST": "token-host",
+            "SPLUNK_PORT": "9999",
+            "SPLUNK_TOKEN": "test-token",
+            "SPLUNK_USERNAME": "should-not-be-used",
+            "SPLUNK_PASSWORD": "should-not-be-used"
+        }):
+            importlib.reload(splunk_mcp)
+            splunk_mcp.get_splunk_connection()
+            call_kwargs = mock_connect.call_args[1]
+            assert call_kwargs["host"] == "token-host"
+            assert str(call_kwargs["port"]) == "9999"
+            assert call_kwargs["token"] == "Bearer test-token"
+            assert "username" not in call_kwargs
+            assert "password" not in call_kwargs 

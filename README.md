@@ -151,6 +151,7 @@ SPLUNK_HOST=your_splunk_host
 SPLUNK_PORT=8089
 SPLUNK_USERNAME=your_username
 SPLUNK_PASSWORD=your_password
+SPLUNK_TOKEN=your_splunk_token
 SPLUNK_SCHEME=https
 VERIFY_SSL=true
 FASTMCP_LOG_LEVEL=INFO
@@ -297,6 +298,7 @@ Configure the following environment variables:
 - `SPLUNK_PORT`: Splunk management port (default: 8089)
 - `SPLUNK_USERNAME`: Your Splunk username
 - `SPLUNK_PASSWORD`: Your Splunk password
+- `SPLUNK_TOKEN`: (Optional) Splunk authentication token. If set, this will be used instead of username/password.
 - `SPLUNK_SCHEME`: Connection scheme (default: https)
 - `VERIFY_SSL`: Enable/disable SSL verification (default: true)
 - `FASTMCP_LOG_LEVEL`: Logging level (default: INFO)
@@ -450,6 +452,7 @@ You can integrate Splunk MCP with Claude Desktop by configuring it to use either
         "SPLUNK_PORT": "8089",
         "SPLUNK_USERNAME": "your_username",
         "SPLUNK_PASSWORD": "your_password",
+        "SPLUNK_TOKEN": "your_splunk_token",
         "SPLUNK_SCHEME": "https",
         "VERIFY_SSL": "false"
       },
@@ -477,6 +480,7 @@ You can integrate Splunk MCP with Claude Desktop by configuring it to use either
         "SPLUNK_PORT": "8089",
         "SPLUNK_USERNAME": "your_username",
         "SPLUNK_PASSWORD": "your_password",
+        "SPLUNK_TOKEN": "your_splunk_token",
         "SPLUNK_SCHEME": "https",
         "VERIFY_SSL": "false",
         "FASTMCP_PORT": "8001",
