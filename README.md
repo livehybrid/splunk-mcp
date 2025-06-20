@@ -156,6 +156,17 @@ VERIFY_SSL=true
 FASTMCP_LOG_LEVEL=INFO
 ```
 
+If tokens is used for credentials instead: 
+```env
+SPLUNK_HOST=your_splunk_host
+SPLUNK_PORT=8089
+SPLUNK_TOKEN=your_splunk_token
+SPLUNK_SCHEME=https
+VERIFY_SSL=true
+FASTMCP_LOG_LEVEL=INFO
+```
+
+
 ### Option 2: Docker Installation
 
 1. Pull the latest image:
