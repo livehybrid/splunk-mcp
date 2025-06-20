@@ -27,7 +27,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("splunk_mcp.log")
+        logging.FileHandler("splunk_mcp.log", encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)
@@ -292,6 +292,7 @@ SPLUNK_HOST = os.environ.get("SPLUNK_HOST", "localhost")
 SPLUNK_PORT = int(os.environ.get("SPLUNK_PORT", "8089"))
 SPLUNK_SCHEME = os.environ.get("SPLUNK_SCHEME", "https")
 SPLUNK_PASSWORD = os.environ.get("SPLUNK_PASSWORD", "admin")
+SPLUNK_TOKEN = os.environ.get("SPLUNK_TOKEN", None)
 VERIFY_SSL = config("VERIFY_SSL", default="true", cast=bool)
 
 def get_splunk_connection() -> splunklib.client.Service:
@@ -302,19 +303,32 @@ def get_splunk_connection() -> splunklib.client.Service:
         splunklib.client.Service: Connected Splunk service
     """
     try:
-        username = os.environ.get("SPLUNK_USERNAME", "admin")
-        
-        logger.debug(f"🔌 Connecting to Splunk at {SPLUNK_SCHEME}://{SPLUNK_HOST}:{SPLUNK_PORT} as {username}")
-        
-        # Connect to Splunk
-        service = splunklib.client.connect(
-            host=SPLUNK_HOST,
-            port=SPLUNK_PORT,
-            username=username,
-            password=SPLUNK_PASSWORD,
-            scheme=SPLUNK_SCHEME,
-            verify=VERIFY_SSL
-        )
+        if not SPLUNK_TOKEN:
+            username = os.environ.get("SPLUNK_USERNAME", "admin")
+            
+            logger.debug(f"🔌 Connecting to Splunk at {SPLUNK_SCHEME}://{SPLUNK_HOST}:{SPLUNK_PORT} as {username}")
+            
+            # Connect to Splunk
+            service = splunklib.client.connect(
+                host=SPLUNK_HOST,
+                port=SPLUNK_PORT,
+                username=username,
+                password=SPLUNK_PASSWORD,
+                scheme=SPLUNK_SCHEME,
+                verify=VERIFY_SSL
+            )
+        else:
+            logger.debug(f"🔌 Connecting to Splunk at {SPLUNK_SCHEME}://{SPLUNK_HOST}:{SPLUNK_PORT} with token")
+            
+            # Connect using token
+            service = splunklib.client.connect(
+                host=SPLUNK_HOST,
+                port=SPLUNK_PORT,
+                token=SPLUNK_TOKEN,
+                scheme=SPLUNK_SCHEME,
+                verify=VERIFY_SSL,
+                autologin=True  # Automatically handle token authentication
+            )
         
         logger.debug(f"✅ Connected to Splunk successfully")
         return service
