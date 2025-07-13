@@ -118,65 +118,119 @@ The MCP implementation includes consistent error handling:
 
 All error responses include a detailed message explaining the error.
 
-## Prerequisites
-
-- Python 3.10 or higher
-- Poetry for dependency management
-- Splunk Enterprise/Cloud instance
-- Appropriate Splunk credentials with necessary permissions
-
 ## Installation
 
-### Option 1: Local Installation
+### Using UV (Recommended)
 
-1. Clone the repository:
+UV is a fast Python package installer and resolver, written in Rust. It's significantly faster than pip and provides better dependency resolution.
+
+#### Prerequisites
+- Python 3.10 or higher
+- UV installed (see [UV installation guide](https://docs.astral.sh/uv/getting-started/installation/))
+
+#### Quick Start with UV
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd splunk-mcp
+   ```
+
+2. **Install dependencies with UV:**
+   ```bash
+   # Install main dependencies
+   uv sync
+   
+   # Or install with development dependencies
+   uv sync --extra dev
+   ```
+
+3. **Run the application:**
+   ```bash
+   # SSE mode (default)
+   uv run python splunk_mcp.py
+   
+   # STDIO mode
+   uv run python splunk_mcp.py stdio
+   
+   # API mode
+   uv run python splunk_mcp.py api
+   ```
+
+#### UV Commands Reference
+
 ```bash
-git clone <repository-url>
-cd splunk-mcp
+# Install dependencies
+uv sync
+
+# Install with development dependencies
+uv sync --extra dev
+
+# Run the application
+uv run python splunk_mcp.py
+
+# Run tests
+uv run pytest
+
+# Run with specific Python version
+uv run --python 3.11 python splunk_mcp.py
+
+# Add a new dependency
+uv add fastapi
+
+# Add a development dependency
+uv add --dev pytest
+
+# Update dependencies
+uv sync --upgrade
+
+# Generate requirements.txt
+uv pip compile pyproject.toml -o requirements.txt
 ```
 
-2. Install dependencies using Poetry:
+### Using Poetry (Alternative)
+
+If you prefer Poetry, you can still use it:
+
 ```bash
+# Install dependencies
 poetry install
+
+# Run the application
+poetry run python splunk_mcp.py
 ```
 
-3. Copy the example environment file and configure your settings:
+### Using pip (Alternative)
+
 ```bash
-cp .env.example .env
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+python splunk_mcp.py
 ```
 
-4. Update the `.env` file with your Splunk credentials:
-```env
-SPLUNK_HOST=your_splunk_host
-SPLUNK_PORT=8089
-SPLUNK_USERNAME=your_username
-SPLUNK_PASSWORD=your_password
-SPLUNK_TOKEN=your_splunk_token
-SPLUNK_SCHEME=https
-VERIFY_SSL=true
-FASTMCP_LOG_LEVEL=INFO
-```
+## Operating Modes
 
-### Option 2: Docker Installation
+The tool operates in three modes:
 
-1. Pull the latest image:
-```bash
-docker pull livehybrid/splunk-mcp:latest
-```
+1. **SSE Mode** (Default)
+   - Server-Sent Events based communication
+   - Real-time bidirectional interaction
+   - Suitable for web-based MCP clients
+   - Default mode when no arguments provided
+   - Access via `/sse` endpoint
 
-2. Create your `.env` file as above or use environment variables directly.
+2. **API Mode**
+   - RESTful API endpoints
+   - Access via `/api/v1` endpoint prefix
+   - Start with `python splunk_mcp.py api`
 
-3. Run using Docker Compose:
-```bash
-docker-compose up -d
-```
-
-Or using Docker directly:
-```bash
-docker run -i \
-  --env-file .env \
-  livehybrid/splunk-mcp
-```
+3. **STDIO Mode**
+   - Standard input/output based communication
+   - Compatible with Claude Desktop and other MCP clients
+   - Ideal for direct integration with AI assistants
+   - Start with `python splunk_mcp.py stdio`
 
 ## Usage
 
@@ -339,199 +393,3 @@ With coverage reporting:
 ```bash
 poetry run pytest --cov=splunk_mcp
 ```
-
-With verbose output:
-```bash
-poetry run pytest -v
-```
-
-### End-to-End SSE Testing
-
-The project includes a custom MCP client test script that connects to the live SSE endpoint and tests all tools:
-
-```bash
-# Test all tools
-python test_endpoints.py
-
-# Test specific tools
-python test_endpoints.py health_check list_indexes
-
-# List all available tools
-python test_endpoints.py --list
-```
-
-This script acts as an MCP client by:
-1. Connecting to the `/sse` endpoint to get the messages URL
-2. Sending tool invocations to the messages endpoint
-3. Processing the SSE events to extract tool results
-4. Validating the results against expected formats
-
-This provides real-world testing of the SSE interface as it would be used by an actual MCP client.
-
-### Test Structure
-
-The project uses three complementary testing approaches:
-
-1. **MCP Integration Tests** (`tests/test_api.py`)**:**
-   - Tests the MCP tools interface through `mcp.call_tool()`
-   - Verifies proper tool registration with FastMCP
-   - Ensures correct response format and data structure
-   - Validates error handling at the MCP interface level
-   - **Note:** This file should ideally be renamed to `test_mcp.py` to better reflect its purpose
-
-2. **Direct Function Tests** (`tests/test_endpoints_pytest.py`)**:**
-   - Tests Splunk functions directly (bypassing the MCP layer)
-   - Provides more comprehensive coverage of function implementation details
-   - Tests edge cases, parameter variations, and error handling
-   - Includes tests for SSL configuration, connection parameters, and timeouts
-   - Uses parameterized testing for efficient test coverage
-
-3. **End-to-End MCP Client Tests** (`test_endpoints.py`)**:**
-   - Behaves like a real MCP client connecting to the SSE endpoint
-   - Tests the complete flow from connection to tool invocation to response parsing
-   - Validates the actual SSE protocol implementation
-   - Tests tools with real parameters against the live server
-
-4. **Configuration Tests** (`tests/test_config.py`)**:**
-   - Tests for environment variable parsing
-   - SSL verification settings
-   - Connection parameter validation
-
-### Testing Tools
-
-The tests support:
-- Async testing with pytest-asyncio
-- Coverage reporting with pytest-cov
-- Mocking with pytest-mock
-- Parameterized testing
-- Connection timeout testing
-
-### Troubleshooting
-
-#### Connection Issues
-
-1. **Basic Connectivity**:
-- The tool now performs a basic TCP connectivity test
-- Check if port 8089 is accessible
-- Verify network routing and firewalls
-
-2. **SSL Issues**:
-- If seeing SSL errors, try setting `VERIFY_SSL=false`
-- Check certificate validity and trust chain
-- Verify hostname matches certificate
-
-3. **Authentication Issues**:
-- Verify Splunk credentials
-- Check user permissions
-- Ensure account is not locked
-
-4. **Debugging**:
-- Set `FASTMCP_LOG_LEVEL=DEBUG` for detailed logs
-- Check connection logs for specific error messages
-- Review SSL configuration messages
-
-5. **SSE Connection Issues**:
-- Verify SSE endpoint is accessible via `/sse`
-- Check for proper content-type headers
-- Use browser developer tools to inspect SSE connections
-
-## Claude Integration
-
-### Claude Desktop Configuration
-
-You can integrate Splunk MCP with Claude Desktop by configuring it to use either SSE or STDIO mode. Add the following configuration to your `claude_desktop_config.json`:
-
-#### STDIO Mode (Recommended for Desktop)
-```json
-{
-  "mcpServers": {
-    "splunk": {
-      "command": "poetry",
-      "env": {
-        "SPLUNK_HOST": "your_splunk_host",
-        "SPLUNK_PORT": "8089",
-        "SPLUNK_USERNAME": "your_username",
-        "SPLUNK_PASSWORD": "your_password",
-        "SPLUNK_TOKEN": "your_splunk_token",
-        "SPLUNK_SCHEME": "https",
-        "VERIFY_SSL": "false"
-      },
-      "args": [
-          "--directory",
-          "/path/to/splunk-mcp",
-          "run",
-          "python",
-          "splunk_mcp.py",
-          "stdio"
-      ]
-    }
-  }
-}
-```
-
-#### SSE Mode
-```json
-{
-  "mcpServers": {
-    "splunk": {
-      "command": "poetry",
-      "env": {
-        "SPLUNK_HOST": "your_splunk_host",
-        "SPLUNK_PORT": "8089",
-        "SPLUNK_USERNAME": "your_username",
-        "SPLUNK_PASSWORD": "your_password",
-        "SPLUNK_TOKEN": "your_splunk_token",
-        "SPLUNK_SCHEME": "https",
-        "VERIFY_SSL": "false",
-        "FASTMCP_PORT": "8001",
-        "DEBUG": "true"
-      },
-      "args": [
-          "--directory",
-          "/path/to/splunk-mcp",
-          "run",
-          "python",
-          "splunk_mcp.py",
-          "sse"
-      ]
-    }
-  }
-}
-```
-
-### Usage with Claude
-
-Once configured, you can use natural language to interact with Splunk through Claude. Examples:
-
-1. List available indexes:
-```
-What Splunk indexes are available?
-```
-
-2. Search Splunk data:
-```
-Search Splunk for failed login attempts in the last 24 hours
-```
-
-3. Get system health:
-```
-Check the health of the Splunk system
-```
-
-4. Manage KV stores:
-```
-List all KV store collections
-```
-
-The MCP tools will be automatically available to Claude, allowing it to execute these operations through natural language commands.
-
-## License
-
-[Your License Here]
-
-## Acknowledgments
-
-- FastMCP framework
-- Splunk SDK for Python
-- Python-decouple for configuration management
-- SSE Starlette for SSE implementation

@@ -1,51 +1,45 @@
 [project]
 name = "splunk-mcp"
-version = "0.1.0"
-description = "A FastMCP tool for Splunk Enterprise/Cloud operations"
+version = "0.3.0"
+description = "A FastMCP-based tool for interacting with Splunk Enterprise/Cloud through natural language"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "fastmcp>=0.1.0",
+    "fastmcp>=0.4.0",
     "splunk-sdk>=1.7.4",
     "python-decouple>=3.8",
-    "aiohttp (>=3.11.14,<4.0.0)",
-    "requests>=2.32.3",
+    "requests>=2.31.0",
+    "aiohttp>=3.11.14,<4.0.0",
+    "uvicorn>=0.23.1",
+    "fastapi>=0.104.0",
+    "starlette>=0.27.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "typer>=0.9.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.28.0",
+    "httpx-sse>=0.4.0",
+    "sse-starlette>=1.8.0",
+    "mcp>=1.5.0",
 ]
 
-
-[tool.poetry]
-name = "splunk-mcp"
-version = "0.3.0"
-description = "Splunk MCP (Model Context Protocol) Server for AI Assistants"
-authors = ["William Searle <splunk@livehybrid.com>"]
-readme = "README.md"
-packages = [
-    { include = "splunk_mcp.py" }
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.14.1",
+    "black>=25.1.0",
+    "isort>=6.0.0",
+    "mypy>=1.0.0",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-fastmcp = ">=0.4.0"
-splunk-sdk = ">=1.7.4"
-python-decouple = ">=3.8"
-requests = ">=2.31.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3"
-black = "^25.1"
-isort = "^6.0"
-mypy = "^1.17"
-pytest-asyncio = ">=0.21.0"
-pytest-cov = ">=4.1.0"
-pytest-mock = "^3.14.1"
+[project.scripts]
+splunk-mcp = "splunk_mcp:mcp.run"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-splunk-mcp = "splunk_mcp:mcp.run"
-test = "pytest:main"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -53,3 +47,17 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

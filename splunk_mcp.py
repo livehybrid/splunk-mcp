@@ -346,7 +346,12 @@ async def search_splunk(search_query: str, earliest_time: str = "-24h", latest_t
     """
     if not search_query:
         raise ValueError("Search query cannot be empty")
-        
+    
+    # Prepend 'search' if not starting with '|' or 'search' (case-insensitive)
+    stripped_query = search_query.lstrip()
+    if not (stripped_query.startswith('|') or stripped_query.lower().startswith('search')):
+        search_query = f"search {search_query}"
+    
     try:
         service = get_splunk_connection()
         logger.info(f"🔍 Executing search: {search_query}")
