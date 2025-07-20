@@ -2,7 +2,7 @@ services:
   mcp:
     build: .
     ports:
-      - "8001:8001"
+      - "${PUBLISH_PORT:-8001}:8001"
     environment:
       - SPLUNK_HOST=${SPLUNK_HOST}
       - SPLUNK_PORT=${SPLUNK_PORT:-8089}
