@@ -1,0 +1,59 @@
+name: Build and Push to ECR
+
+on:
+  push:
+    branches: [main, feature/**]
+    paths:
+      - Dockerfile
+      - splunk_mcp.py
+      - .github/workflows/docker-build.yml
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: splunk-mcp
+  IMAGE_TAG: latest
+  ECR_URI: 055566004354.dkr.ecr.ap-south-1.amazonaws.com
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS CLI
+        run: |
+          mkdir -p ~/.aws
+          echo "[default]" > ~/.aws/credentials
+          echo "aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
+          echo "aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
+
+          echo "[profile dev-role]" > ~/.aws/config
+          echo "role_arn = arn:aws:iam::055566004354:role/OrganizationAccountAccessRole" >> ~/.aws/config
+          echo "source_profile = default" >> ~/.aws/config
+          echo "region = ${{ env.AWS_REGION }}" >> ~/.aws/config
+
+      - name: Who am I? Check Caller Identity
+        run: |
+          echo "🔍 AWS CLI Identity Info"
+          aws sts get-caller-identity --profile dev-role
+          echo "🔍 AWS Configuration"
+          aws configure list --profile dev-role
+
+      - name: Login to Amazon ECR
+        run: |
+          export AWS_PROFILE=dev-role
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ env.ECR_URI }}
+
+      - name: Build and Push Docker Image
+        run: |
+          export AWS_PROFILE=dev-role
+          IMAGE=${{ env.ECR_URI }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Output Image URI
+        run: |
+          echo "✅ Image pushed: ${{ env.ECR_URI }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
