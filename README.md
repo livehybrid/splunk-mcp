@@ -2,6 +2,10 @@
 
 A FastMCP-based tool for interacting with Splunk Enterprise/Cloud through natural language. This tool provides a set of capabilities for searching Splunk data, managing KV stores, and accessing Splunk resources through an intuitive interface.
 
+<a href="https://glama.ai/mcp/servers/@livehybrid/splunk-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@livehybrid/splunk-mcp/badge" alt="splunk-mcp MCP server" />
+</a>
+
 ## Operating Modes
 
 The tool operates in three modes:
