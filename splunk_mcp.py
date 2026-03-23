@@ -666,6 +666,277 @@ async def list_kvstore_collections() -> List[Dict[str, Any]]:
         raise
 
 @mcp.tool()
+async def list_alerts() -> List[Dict[str, Any]]:
+    """
+    List all alerts (saved searches configured as alerts) in Splunk.
+
+    Returns alert configurations including severity, actions, scheduling,
+    and the number of times each alert has been triggered.
+
+    Returns:
+        List of alerts with their configuration and trigger counts
+    """
+    try:
+        service = get_splunk_connection()
+        logger.info("🚨 Fetching Splunk alerts...")
+
+        alerts = []
+        for saved_search in service.saved_searches:
+            try:
+                content = saved_search.content if hasattr(saved_search, 'content') else {}
+
+                # A saved search is an alert if it has alert actions or alert tracking enabled
+                is_alert = (
+                    content.get('alert.track', '0') not in ('0', 'false', '') or
+                    content.get('actions', '') != '' or
+                    content.get('alert_type', '') != ''
+                )
+                if not is_alert:
+                    continue
+
+                # Parse actions into a list
+                actions_str = content.get('actions', '')
+                actions = [a.strip() for a in actions_str.split(',')] if actions_str else []
+
+                alert_info = {
+                    "name": saved_search.name,
+                    "description": content.get('description', '') or '',
+                    "search": saved_search.search,
+                    "is_scheduled": content.get('is_scheduled', '0') == '1',
+                    "cron_schedule": content.get('cron_schedule', ''),
+                    "alert_type": content.get('alert_type', ''),
+                    "alert_severity": content.get('alert.severity', ''),
+                    "alert_comparator": content.get('alert.comparator', ''),
+                    "alert_threshold": content.get('alert.threshold', ''),
+                    "alert_track": content.get('alert.track', '0'),
+                    "alert_suppress": content.get('alert.suppress', '0'),
+                    "alert_suppress_period": content.get('alert.suppress.period', ''),
+                    "actions": actions,
+                    "disabled": content.get('disabled', '0') == '1',
+                }
+
+                # Try to get alert count
+                try:
+                    alert_info["triggered_alert_count"] = saved_search.alert_count
+                except Exception:
+                    alert_info["triggered_alert_count"] = 0
+
+                alerts.append(alert_info)
+            except Exception as e:
+                logger.warning(f"⚠️ Error processing saved search {saved_search.name}: {str(e)}")
+                continue
+
+        logger.info(f"✅ Found {len(alerts)} alerts")
+        return alerts
+
+    except Exception as e:
+        logger.error(f"❌ Failed to list alerts: {str(e)}")
+        raise
+
+
+@mcp.tool()
+async def get_alert(alert_name: str) -> Dict[str, Any]:
+    """
+    Get detailed configuration for a specific alert (saved search configured as an alert).
+
+    Args:
+        alert_name: Name of the alert/saved search to retrieve
+
+    Returns:
+        Dictionary containing the full alert configuration and action details
+    """
+    try:
+        service = get_splunk_connection()
+        logger.info(f"🔍 Fetching alert details for: {alert_name}")
+
+        try:
+            saved_search = service.saved_searches[alert_name]
+        except KeyError:
+            raise ValueError(f"Alert not found: {alert_name}")
+
+        content = saved_search.content if hasattr(saved_search, 'content') else {}
+
+        # Parse actions into a list
+        actions_str = content.get('actions', '')
+        actions = [a.strip() for a in actions_str.split(',')] if actions_str else []
+
+        # Collect action-specific settings
+        action_configs = {}
+        for action in actions:
+            action_prefix = f"action.{action}."
+            action_config = {}
+            for key, value in content.items():
+                if key.startswith(action_prefix):
+                    param_name = key[len(action_prefix):]
+                    action_config[param_name] = str(value)
+            if action_config:
+                action_configs[action] = action_config
+
+        alert_detail = {
+            "name": saved_search.name,
+            "description": content.get('description', '') or '',
+            "search": saved_search.search,
+            "is_scheduled": content.get('is_scheduled', '0') == '1',
+            "cron_schedule": content.get('cron_schedule', ''),
+            "alert_type": content.get('alert_type', ''),
+            "alert_severity": content.get('alert.severity', ''),
+            "alert_comparator": content.get('alert.comparator', ''),
+            "alert_threshold": content.get('alert.threshold', ''),
+            "alert_track": content.get('alert.track', '0'),
+            "alert_suppress": content.get('alert.suppress', '0'),
+            "alert_suppress_period": content.get('alert.suppress.period', ''),
+            "alert_suppress_fields": content.get('alert.suppress.fields', ''),
+            "alert_expires": content.get('alert.expires', ''),
+            "alert_digest_mode": content.get('alert.digest_mode', ''),
+            "actions": actions,
+            "action_configs": action_configs,
+            "disabled": content.get('disabled', '0') == '1',
+            "dispatch_earliest_time": content.get('dispatch.earliest_time', ''),
+            "dispatch_latest_time": content.get('dispatch.latest_time', ''),
+        }
+
+        # Try to get triggered alert count
+        try:
+            alert_detail["triggered_alert_count"] = saved_search.alert_count
+        except Exception:
+            alert_detail["triggered_alert_count"] = 0
+
+        logger.info(f"✅ Successfully retrieved alert details for: {alert_name}")
+        return alert_detail
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get alert details: {str(e)}")
+        raise
+
+
+@mcp.tool()
+async def list_fired_alerts() -> List[Dict[str, Any]]:
+    """
+    List all alerts that have been triggered (fired) in Splunk.
+
+    Scans saved searches for any with a non-zero triggered alert count.
+    Use get_fired_alert_details with the alert name to see individual instances.
+
+    Returns:
+        List of alerts that have fired, with their trigger counts and severity
+    """
+    try:
+        service = get_splunk_connection()
+        logger.info("🔔 Fetching fired alerts...")
+
+        fired_alert_groups = []
+        for saved_search in service.saved_searches:
+            try:
+                alert_count = 0
+                try:
+                    alert_count = int(saved_search.alert_count)
+                except (AttributeError, TypeError, ValueError):
+                    pass
+
+                if alert_count == 0:
+                    continue
+
+                content = saved_search.content if hasattr(saved_search, 'content') else {}
+                group_info = {
+                    "name": saved_search.name,
+                    "triggered_alert_count": alert_count,
+                    "search": saved_search.search,
+                    "alert_severity": content.get('alert.severity', ''),
+                    "cron_schedule": content.get('cron_schedule', ''),
+                }
+
+                fired_alert_groups.append(group_info)
+            except Exception as e:
+                logger.warning(f"⚠️ Error processing saved search {saved_search.name}: {str(e)}")
+                continue
+
+        # Sort by count descending
+        fired_alert_groups.sort(key=lambda x: x.get('triggered_alert_count', 0), reverse=True)
+
+        logger.info(f"✅ Found {len(fired_alert_groups)} alerts with fired instances")
+        return fired_alert_groups
+
+    except Exception as e:
+        logger.error(f"❌ Failed to list fired alerts: {str(e)}")
+        raise
+
+
+@mcp.tool()
+async def get_fired_alert_details(alert_name: str) -> Dict[str, Any]:
+    """
+    Get details of individual triggered alert instances for a specific alert.
+
+    Args:
+        alert_name: Name of the alert/saved search to get triggered instances for
+
+    Returns:
+        Dictionary containing alert instances with their trigger times and details
+    """
+    try:
+        service = get_splunk_connection()
+        logger.info(f"🔍 Fetching fired alert details for: {alert_name}")
+
+        try:
+            saved_search = service.saved_searches[alert_name]
+        except KeyError:
+            raise ValueError(f"Alert not found: {alert_name}")
+
+        # Get the triggered alerts for this saved search
+        alert_instances = []
+        try:
+            for alert in saved_search.fired_alerts:
+                try:
+                    content = alert.content if hasattr(alert, 'content') else {}
+                    instance = {
+                        "name": alert.name if hasattr(alert, 'name') else '',
+                        "trigger_time": content.get('trigger_time', ''),
+                        "trigger_time_rendered": content.get('trigger_time_rendered', ''),
+                        "severity": content.get('severity', ''),
+                        "expiration_time_rendered": content.get('expiration_time_rendered', ''),
+                        "digest_mode": content.get('digest_mode', ''),
+                        "savedsearch_name": content.get('savedsearch_name', alert_name),
+                    }
+
+                    # Include triggered actions if available
+                    if content.get('actions', ''):
+                        instance["actions"] = content['actions']
+
+                    # Include result count if available
+                    if content.get('triggered_alerts', ''):
+                        instance["result_count"] = content['triggered_alerts']
+
+                    alert_instances.append(instance)
+                except Exception as e:
+                    logger.warning(f"⚠️ Error processing alert instance: {str(e)}")
+                    continue
+        except Exception as e:
+            logger.warning(f"⚠️ Could not access fired alerts collection: {str(e)}")
+
+        result = {
+            "alert_name": alert_name,
+            "total_instances": len(alert_instances),
+            "instances": alert_instances,
+        }
+
+        # Try to get alert count from the saved search
+        try:
+            result["triggered_alert_count"] = saved_search.alert_count
+        except Exception:
+            pass
+
+        logger.info(f"✅ Found {len(alert_instances)} fired instances for alert: {alert_name}")
+        return result
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get fired alert details: {str(e)}")
+        raise
+
+
+@mcp.tool()
 async def health_check() -> Dict[str, Any]:
     """Get basic Splunk connection information and list available apps"""
     try:

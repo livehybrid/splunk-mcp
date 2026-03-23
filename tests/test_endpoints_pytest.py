@@ -36,7 +36,9 @@ TEST_FUNCTIONS = [
     "current_user",
     "list_users",
     "list_kvstore_collections",
-    "health_check"
+    "health_check",
+    "list_alerts",
+    "list_fired_alerts",
 ]
 
 def log(message: str, level: str = "INFO") -> None:
@@ -124,15 +126,79 @@ def mock_splunk_service():
     mock_jobs.create = MagicMock(return_value=mock_job)
     mock_service.jobs = mock_jobs
     
-    # Mock saved searches
+    # Mock saved searches (including one configured as an alert)
     mock_saved_search = MagicMock()
     mock_saved_search.name = "test_search"
     mock_saved_search.description = "Test search description"
     mock_saved_search.search = "index=main | stats count"
-    
+    mock_saved_search.alert_count = 0
+    mock_saved_search.content = {
+        'description': 'Test search description',
+        'alert.track': '0',
+        'actions': '',
+        'alert_type': '',
+    }
+
+    mock_alert_search = MagicMock()
+    mock_alert_search.name = "test_alert"
+    mock_alert_search.description = "Test alert description"
+    mock_alert_search.search = "index=main error | stats count"
+    mock_alert_search.alert_count = 5
+    mock_alert_search.content = {
+        'description': 'Test alert description',
+        'is_scheduled': '1',
+        'cron_schedule': '*/5 * * * *',
+        'alert_type': 'number of events',
+        'alert.severity': '4',
+        'alert.comparator': 'greater than',
+        'alert.threshold': '10',
+        'alert.track': '1',
+        'alert.suppress': '0',
+        'alert.suppress.period': '',
+        'alert.suppress.fields': '',
+        'alert.expires': '24h',
+        'alert.digest_mode': '1',
+        'actions': 'email,webhook',
+        'action.email.to': 'ops@example.com',
+        'action.email.subject': 'Alert: $name$',
+        'action.webhook.param.url': 'https://hooks.example.com/alert',
+        'disabled': '0',
+        'dispatch.earliest_time': '-5m',
+        'dispatch.latest_time': 'now',
+    }
+
+    # Mock fired alerts on the alert saved search
+    mock_fired_alert_instance = MagicMock()
+    mock_fired_alert_instance.name = "test_alert_1"
+    mock_fired_alert_instance.content = {
+        'trigger_time': '1710000000',
+        'trigger_time_rendered': '2025-03-09 12:00:00',
+        'severity': '4',
+        'expiration_time_rendered': '2025-03-10 12:00:00',
+        'digest_mode': '1',
+        'savedsearch_name': 'test_alert',
+        'actions': 'email,webhook',
+    }
+    mock_alert_search.fired_alerts = MagicMock()
+    mock_alert_search.fired_alerts.__iter__ = MagicMock(return_value=iter([mock_fired_alert_instance]))
+
     mock_saved_searches = MagicMock()
-    mock_saved_searches.__iter__ = MagicMock(return_value=iter([mock_saved_search]))
+    mock_saved_searches.__iter__ = MagicMock(return_value=iter([mock_saved_search, mock_alert_search]))
+    mock_saved_searches.__getitem__ = MagicMock(side_effect=lambda key:
+        mock_alert_search if key == "test_alert"
+        else mock_saved_search if key == "test_search"
+        else (_ for _ in ()).throw(KeyError(f"Saved search not found: {key}")))
     mock_service.saved_searches = mock_saved_searches
+
+    # Mock fired_alerts on the service (alert groups)
+    mock_fired_alert_group = MagicMock()
+    mock_fired_alert_group.name = "test_alert"
+    mock_fired_alert_group.content = {'triggered_alert_count': 5}
+    mock_fired_alert_group.links = {'alternate': '/services/alerts/fired_alerts/test_alert'}
+
+    mock_fired_alerts = MagicMock()
+    mock_fired_alerts.__iter__ = MagicMock(return_value=iter([mock_fired_alert_group]))
+    mock_service.fired_alerts = mock_fired_alerts
     
     # Mock users for list_users
     mock_user = MagicMock()
@@ -478,4 +544,79 @@ async def test_splunk_token_auth():
             assert str(call_kwargs["port"]) == "9999"
             assert call_kwargs["token"] == "Bearer test-token"
             assert "username" not in call_kwargs
-            assert "password" not in call_kwargs 
+            assert "password" not in call_kwargs
+
+
+# ---- Alert tool tests ----
+
+@pytest.mark.asyncio
+async def test_list_alerts(mock_splunk_service):
+    """Test list_alerts returns only saved searches configured as alerts"""
+    with patch("splunk_mcp.get_splunk_connection", return_value=mock_splunk_service):
+        result = await splunk_mcp.list_alerts()
+        assert isinstance(result, list)
+        assert len(result) == 1  # Only test_alert, not test_search
+        alert = result[0]
+        assert alert["name"] == "test_alert"
+        assert alert["is_scheduled"] is True
+        assert alert["alert_severity"] == "4"
+        assert "email" in alert["actions"]
+        assert "webhook" in alert["actions"]
+        assert alert["triggered_alert_count"] == 5
+        assert alert["disabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_alert(mock_splunk_service):
+    """Test get_alert returns full configuration including action configs"""
+    with patch("splunk_mcp.get_splunk_connection", return_value=mock_splunk_service):
+        result = await splunk_mcp.get_alert(alert_name="test_alert")
+        assert result["name"] == "test_alert"
+        assert result["search"] == "index=main error | stats count"
+        assert result["cron_schedule"] == "*/5 * * * *"
+        assert "action_configs" in result
+        assert "email" in result["action_configs"]
+        assert result["action_configs"]["email"]["to"] == "ops@example.com"
+        assert "webhook" in result["action_configs"]
+
+
+@pytest.mark.asyncio
+async def test_get_alert_not_found(mock_splunk_service):
+    """Test get_alert raises ValueError for non-existent alert"""
+    with patch("splunk_mcp.get_splunk_connection", return_value=mock_splunk_service):
+        with pytest.raises(ValueError, match="Alert not found"):
+            await splunk_mcp.get_alert(alert_name="non_existent_alert")
+
+
+@pytest.mark.asyncio
+async def test_list_fired_alerts(mock_splunk_service):
+    """Test list_fired_alerts returns alerts with non-zero trigger counts"""
+    with patch("splunk_mcp.get_splunk_connection", return_value=mock_splunk_service):
+        result = await splunk_mcp.list_fired_alerts()
+        assert isinstance(result, list)
+        assert len(result) == 1  # Only test_alert has alert_count=5, test_search has 0
+        group = result[0]
+        assert group["name"] == "test_alert"
+        assert group["triggered_alert_count"] == 5
+        assert group["alert_severity"] == "4"
+
+
+@pytest.mark.asyncio
+async def test_get_fired_alert_details(mock_splunk_service):
+    """Test get_fired_alert_details returns individual alert instances"""
+    with patch("splunk_mcp.get_splunk_connection", return_value=mock_splunk_service):
+        result = await splunk_mcp.get_fired_alert_details(alert_name="test_alert")
+        assert result["alert_name"] == "test_alert"
+        assert result["total_instances"] == 1
+        assert len(result["instances"]) == 1
+        instance = result["instances"][0]
+        assert instance["severity"] == "4"
+        assert instance["trigger_time_rendered"] == "2025-03-09 12:00:00"
+
+
+@pytest.mark.asyncio
+async def test_get_fired_alert_details_not_found(mock_splunk_service):
+    """Test get_fired_alert_details raises ValueError for non-existent alert"""
+    with patch("splunk_mcp.get_splunk_connection", return_value=mock_splunk_service):
+        with pytest.raises(ValueError, match="Alert not found"):
+            await splunk_mcp.get_fired_alert_details(alert_name="non_existent_alert")
