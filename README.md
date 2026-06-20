@@ -1,3 +1,20 @@
+> # ⚠️ This project is archived — use the official Splunk MCP Server
+>
+> **Thank you to everyone who used, starred, and forked this project!** 🙏
+> It started as a community effort to bring Model Context Protocol (MCP)
+> support to Splunk, well before an official option existed.
+>
+> **Splunk now ships a first-party, fully supported MCP server** that has grown
+> beyond what this community project provides. Please migrate to the official server:
+>
+> - 📦 **Splunk MCP Server on Splunkbase (App 7931, by Splunk LLC):** https://splunkbase.splunk.com/app/7931
+> - 📖 **Docs — MCP Server for Splunk Platform:** https://help.splunk.com/en/splunk-cloud-platform/mcp-server-for-splunk-platform/
+>
+> This repository is now **read-only / archived** and will no longer receive
+> updates. The code below is preserved for historical reference. Thanks again! 🚀
+
+---
+
 # Splunk MCP (Model Context Protocol) Tool
 
 A FastMCP-based tool for interacting with Splunk Enterprise/Cloud through natural language. This tool provides a set of capabilities for searching Splunk data, managing KV stores, and accessing Splunk resources through an intuitive interface.
