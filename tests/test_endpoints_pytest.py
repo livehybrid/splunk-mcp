@@ -476,6 +476,6 @@ async def test_splunk_token_auth():
             call_kwargs = mock_connect.call_args[1]
             assert call_kwargs["host"] == "token-host"
             assert str(call_kwargs["port"]) == "9999"
-            assert call_kwargs["token"] == "Bearer test-token"
+            assert call_kwargs["splunkToken"] == "test-token"
             assert "username" not in call_kwargs
             assert "password" not in call_kwargs 

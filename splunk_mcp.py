@@ -311,7 +311,7 @@ def get_splunk_connection() -> splunklib.client.Service:
                 port=SPLUNK_PORT,
                 scheme=SPLUNK_SCHEME,
                 verify=VERIFY_SSL,
-                token=f"Bearer {SPLUNK_TOKEN}"
+                splunkToken=SPLUNK_TOKEN
             )
         else:
             username = os.environ.get("SPLUNK_USERNAME", "admin")
