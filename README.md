@@ -19,23 +19,33 @@
 
 A FastMCP-based tool for interacting with Splunk Enterprise/Cloud through natural language. This tool provides a set of capabilities for searching Splunk data, managing KV stores, and accessing Splunk resources through an intuitive interface.
 
+Built with **FastMCP 2.14** and **MCP 1.25** to align with current MCP standards for server/client development.
+
 ## Operating Modes
 
-The tool operates in three modes:
+The tool supports four transport modes:
 
 1. **SSE Mode** (Default)
    - Server-Sent Events based communication
    - Real-time bidirectional interaction
    - Suitable for web-based MCP clients
-   - Default mode when no arguments provided
+   - Default mode when no arguments provided (maintained for backward compatibility)
    - Access via `/sse` endpoint
+   - **Note**: SSE has been superseded by HTTP transport in the MCP standard
 
-2. **API Mode**
+2. **HTTP Mode** (Recommended)
+   - Standard HTTP transport as defined in MCP specification
+   - The current standard for MCP server/client communication
+   - Full compliance with modern MCP protocol
+   - Start with `python splunk_mcp.py http`
+   - Access via `/mcp` endpoint
+
+3. **API Mode**
    - RESTful API endpoints
    - Access via `/api/v1` endpoint prefix
    - Start with `python splunk_mcp.py api`
 
-3. **STDIO Mode**
+4. **STDIO Mode**
    - Standard input/output based communication
    - Compatible with Claude Desktop and other MCP clients
    - Ideal for direct integration with AI assistants
@@ -164,8 +174,11 @@ UV is a fast Python package installer and resolver, written in Rust. It's signif
 
 3. **Run the application:**
    ```bash
-   # SSE mode (default)
+   # SSE mode (default for backward compatibility)
    uv run python splunk_mcp.py
+   
+   # HTTP mode (recommended - current MCP standard)
+   uv run python splunk_mcp.py http
    
    # STDIO mode
    uv run python splunk_mcp.py stdio
@@ -229,21 +242,29 @@ python splunk_mcp.py
 
 ## Operating Modes
 
-The tool operates in three modes:
+The tool supports four transport modes:
 
 1. **SSE Mode** (Default)
    - Server-Sent Events based communication
    - Real-time bidirectional interaction
-   - Suitable for web-based MCP clients
-   - Default mode when no arguments provided
+   - Suitable for legacy web-based MCP clients
+   - Default mode when no arguments provided (maintained for backward compatibility)
    - Access via `/sse` endpoint
+   - **Note**: Superseded by HTTP transport in current MCP standard
 
-2. **API Mode**
+2. **HTTP Mode** (Recommended)
+   - Standard HTTP transport as defined in MCP specification
+   - The current standard for MCP server/client communication
+   - Full compliance with modern MCP protocol
+   - Start with `python splunk_mcp.py http`
+   - Access via `/mcp` endpoint
+
+3. **API Mode**
    - RESTful API endpoints
    - Access via `/api/v1` endpoint prefix
    - Start with `python splunk_mcp.py api`
 
-3. **STDIO Mode**
+4. **STDIO Mode**
    - Standard input/output based communication
    - Compatible with Claude Desktop and other MCP clients
    - Ideal for direct integration with AI assistants
@@ -253,20 +274,29 @@ The tool operates in three modes:
 
 ### Local Usage
 
-The tool can run in three modes:
+The tool can run in four modes:
 
-1. SSE mode (default for MCP clients):
+1. SSE mode (default for backward compatibility):
 ```bash
 # Start in SSE mode (default)
 poetry run python splunk_mcp.py
 # or explicitly:
 poetry run python splunk_mcp.py sse
+```
 
+2. HTTP mode (recommended - current MCP standard):
+```bash
+# Start in HTTP mode
+poetry run python splunk_mcp.py http
+```
+
+3. API mode:
+```bash
 # Use uvicorn directly:
 SERVER_MODE=api poetry run uvicorn splunk_mcp:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-3. STDIO mode:
+4. STDIO mode:
 ```bash
 poetry run python splunk_mcp.py stdio
 ```
@@ -280,12 +310,17 @@ The project supports both the new `docker compose` (V2) and legacy `docker-compo
 docker compose up -d mcp
 ```
 
-2. API Mode:
+2. HTTP Mode (Recommended):
+```bash
+docker compose run --rm mcp python splunk_mcp.py http
+```
+
+3. API Mode:
 ```bash
 docker compose run --rm mcp python splunk_mcp.py api
 ```
 
-3. STDIO Mode:
+4. STDIO Mode:
 ```bash
 docker compose run -i --rm mcp python splunk_mcp.py stdio
 ```
@@ -373,7 +408,7 @@ Configure the following environment variables:
 - `SPLUNK_SCHEME`: Connection scheme (default: https)
 - `VERIFY_SSL`: Enable/disable SSL verification (default: true)
 - `FASTMCP_LOG_LEVEL`: Logging level (default: INFO)
-- `SERVER_MODE`: Server mode (sse, api, stdio) when using uvicorn
+- `SERVER_MODE`: Server mode (sse, http, api, stdio) when using uvicorn
 
 ### SSL Configuration
 

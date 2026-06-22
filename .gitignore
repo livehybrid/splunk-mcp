@@ -1,3 +1,6 @@
+# Development Exclusions
+*.code-workspace
+copilot-instructions.md
 
 # Python
 __pycache__/
