@@ -453,6 +453,142 @@ async def list_saved_searches() -> List[Dict[str, Any]]:
         raise
 
 @mcp.tool()
+async def list_alerts() -> List[Dict[str, Any]]:
+    """
+    List all alerts (scheduled saved searches with alert actions) in Splunk.
+
+    Returns:
+        List of alerts with name, search query, schedule, severity, and actions.
+    """
+    try:
+        service = get_splunk_connection()
+        logger.info("🔔 Listing alerts...")
+        alerts = []
+
+        for saved_search in service.saved_searches:
+            try:
+                content = saved_search.content
+                is_scheduled = content.get("is_scheduled", "0")
+                actions = content.get("actions", "")
+                if str(is_scheduled) == "1" and actions:
+                    alerts.append({
+                        "name": saved_search.name,
+                        "search": content.get("search", ""),
+                        "cron_schedule": content.get("cron_schedule", ""),
+                        "is_scheduled": is_scheduled,
+                        "actions": actions,
+                        "alert.severity": content.get("alert.severity", ""),
+                        "alert.suppress": content.get("alert.suppress", "0"),
+                        "alert.expires": content.get("alert.expires", ""),
+                        "alert.digest_mode": content.get("alert.digest_mode", ""),
+                        "alert.track": content.get("alert.track", ""),
+                        "disabled": content.get("disabled", "0"),
+                        "description": content.get("description", ""),
+                    })
+            except Exception as e:
+                logger.warning(f"⚠️ Error processing saved search: {str(e)}")
+                continue
+
+        logger.info(f"✅ Found {len(alerts)} alerts")
+        return alerts
+
+    except Exception as e:
+        logger.error(f"❌ Failed to list alerts: {str(e)}")
+        raise
+
+@mcp.tool()
+async def get_alert_history(alert_name: str = "", max_results: int = 50) -> List[Dict[str, Any]]:
+    """
+    Get alert trigger history (fired alerts summary).
+
+    Args:
+        alert_name: Optional alert name to filter. If empty, returns all fired alerts.
+        max_results: Maximum number of results to return (default: 50).
+
+    Returns:
+        List of fired alert records with name and triggered_alert_count.
+    """
+    try:
+        service = get_splunk_connection()
+        logger.info(f"🔔 Getting alert history (filter: '{alert_name}')...")
+
+        fired_alerts = []
+        endpoint = "/servicesNS/-/-/alerts/fired_alerts"
+        response = service.get(endpoint, output_mode="json", count=max_results).body.read()
+        data = json.loads(response)
+
+        for entry in data.get("entry", []):
+            name = entry.get("name", "")
+            if alert_name and alert_name.lower() not in name.lower():
+                continue
+            content = entry.get("content", {})
+            fired_alerts.append({
+                "name": name,
+                "triggered_alert_count": content.get("triggered_alert_count", 0),
+            })
+
+        logger.info(f"✅ Found {len(fired_alerts)} fired alert records")
+        return fired_alerts
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get alert history: {str(e)}")
+        raise
+
+@mcp.tool()
+async def get_alert_settings(alert_name: str) -> Dict[str, Any]:
+    """
+    Get detailed settings for a specific alert (saved search).
+
+    Args:
+        alert_name: The exact name of the alert/saved search.
+
+    Returns:
+        Detailed alert configuration including search, schedule, actions, suppression, and thresholds.
+    """
+    if not alert_name:
+        raise ValueError("alert_name cannot be empty")
+
+    try:
+        service = get_splunk_connection()
+        logger.info(f"🔔 Getting settings for alert: {alert_name}")
+
+        saved_search = service.saved_searches[alert_name]
+        content = saved_search.content
+
+        settings = {
+            "name": saved_search.name,
+            "description": content.get("description", ""),
+            "search": content.get("search", ""),
+            "cron_schedule": content.get("cron_schedule", ""),
+            "is_scheduled": content.get("is_scheduled", "0"),
+            "disabled": content.get("disabled", "0"),
+            "dispatch.earliest_time": content.get("dispatch.earliest_time", ""),
+            "dispatch.latest_time": content.get("dispatch.latest_time", ""),
+            "actions": content.get("actions", ""),
+            "alert.severity": content.get("alert.severity", ""),
+            "alert_type": content.get("alert_type", ""),
+            "alert.comparator": content.get("alert.comparator", ""),
+            "alert.threshold": content.get("alert.threshold", ""),
+            "alert.digest_mode": content.get("alert.digest_mode", ""),
+            "alert.suppress": content.get("alert.suppress", "0"),
+            "alert.suppress.fields": content.get("alert.suppress.fields", ""),
+            "alert.suppress.period": content.get("alert.suppress.period", ""),
+            "alert.expires": content.get("alert.expires", ""),
+            "alert.track": content.get("alert.track", ""),
+            "action.webhook.param.url": content.get("action.webhook.param.url", ""),
+            "action.email.to": content.get("action.email.to", ""),
+        }
+
+        logger.info(f"✅ Retrieved settings for alert: {alert_name}")
+        return settings
+
+    except KeyError:
+        raise ValueError(f"Alert '{alert_name}' not found")
+    except Exception as e:
+        logger.error(f"❌ Failed to get alert settings: {str(e)}")
+        raise
+
+@mcp.tool()
 async def current_user() -> Dict[str, Any]:
     """
     Get information about the currently authenticated user.
