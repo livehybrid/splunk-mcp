@@ -22,12 +22,13 @@ from starlette.routing import Mount
 import uvicorn
 
 # Configure logging
+LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "splunk_mcp.log")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("splunk_mcp.log")
+        logging.FileHandler(LOG_PATH)
     ]
 )
 logger = logging.getLogger(__name__)
